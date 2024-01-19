@@ -48,35 +48,50 @@ Any value returned is ignored.
 [options : Object] = A JavaScript object with optional data properties; see API documentation for details.
 */
 
+const PLAYER_COLOR = PS.COLOR_BLUE;
+const TRAP_COLOR = PS.COLOR_RED;
+const EXIT_COLOR = PS.COLOR_GREEN;
+const NORMAL_COLOR = PS.COLOR_GRAY;
+const playerPosition = {x: 0, y: 0}; // Starting position of the player
+
 PS.init = function( system, options ) {
-	// Uncomment the following code line
-	// to verify operation:
+	PS.debug( "PS.init() called\n" );
 
-	// PS.debug( "PS.init() called\n" );
+	PS.gridSize( 9, 9);
+	PS.statusText( "Escape the Grid" );
 
-	// This function should normally begin
-	// with a call to PS.gridSize( x, y )
-	// where x and y are the desired initial
-	// dimensions of the grid.
-	// Call PS.gridSize() FIRST to avoid problems!
-	// The sample call below sets the grid to the
-	// default dimensions (8 x 8).
-	// Uncomment the following code line and change
-	// the x and y parameters as needed.
+	PS.color(playerPosition.x, playerPosition.y, PLAYER_COLOR);
 
-	// PS.gridSize( 8, 8 );
+	// Exit position
+	var exitPosition = { x: PS.gridSize().width - 1, y: PS.gridSize().height - 1 };
+	PS.color(exitPosition.x, exitPosition.y, EXIT_COLOR);
 
-	// This is also a good place to display
-	// your game title or a welcome message
-	// in the status line above the grid.
-	// Uncomment the following code line and
-	// change the string parameter as needed.
-
-	// PS.statusText( "Game" );
-
-	// Add any other initialization code you need here.
+	placeTraps();
 };
 
+/**
+ * To place traps on the grids
+ */
+function placeTraps(){
+	// set trap positions
+	const trapPositions = [
+		{x: 3, y: 0}, {x: 6, y: 0}, {x: 7, y: 0}, {x: 8, y: 0},
+		{x: 3, y: 1},
+		{x: 5, y: 2}, {x: 6, y: 2}, {x: 7, y: 2},
+		{x: 1, y: 3}, {x: 2, y: 3}, {x: 3, y: 3}, {x: 4, y: 3},
+		{x: 1, y: 4}, {x: 2, y: 4}, {x: 3, y: 4}, {x: 4, y: 4}, {x: 6, y: 4}, {x: 7, y: 4}, {x: 8, y: 4},
+		{x: 3, y: 5}, {x: 4, y: 5}, {x: 7, y: 5}, {x: 8, y: 5},
+		{x: 0, y: 6}, {x: 1, y: 6}, {x: 3, y: 6}, {x: 4, y: 6}, {x: 5, y: 6},
+		{x: 0, y: 7}, {x: 3, y: 7}, {x: 7, y: 7},
+		{x: 0, y: 8}, {x: 5, y: 8}, {x: 6, y: 8}, {x: 7, y: 8},
+	];
+
+	// set trap color and store them into data to mark them as traps
+	trapPositions.forEach(function(position){
+		PS.color(position.x, position.y, TRAP_COLOR);
+		PS.data(position.x, position.y, "trap");
+	});
+}
 /*
 PS.touch ( x, y, data, options )
 Called when the left mouse button is clicked over bead(x, y), or when bead(x, y) is touched.
@@ -91,7 +106,7 @@ PS.touch = function( x, y, data, options ) {
 	// Uncomment the following code line
 	// to inspect x/y parameters:
 
-	// PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
+	PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
 
 	// Add code here for mouse clicks/touches
 	// over a bead.
@@ -110,7 +125,7 @@ This function doesn't have to do anything. Any value returned is ignored.
 PS.release = function( x, y, data, options ) {
 	// Uncomment the following code line to inspect x/y parameters:
 
-	// PS.debug( "PS.release() @ " + x + ", " + y + "\n" );
+	//PS.debug( "PS.release() @ " + x + ", " + y + "\n" );
 
 	// Add code here for when the mouse button/touch is released over a bead.
 };
@@ -128,7 +143,7 @@ This function doesn't have to do anything. Any value returned is ignored.
 PS.enter = function( x, y, data, options ) {
 	// Uncomment the following code line to inspect x/y parameters:
 
-	// PS.debug( "PS.enter() @ " + x + ", " + y + "\n" );
+	//PS.debug( "PS.enter() @ " + x + ", " + y + "\n" );
 
 	// Add code here for when the mouse cursor/touch enters a bead.
 };
@@ -161,7 +176,7 @@ This function doesn't have to do anything. Any value returned is ignored.
 PS.exitGrid = function( options ) {
 	// Uncomment the following code line to verify operation:
 
-	// PS.debug( "PS.exitGrid() called\n" );
+	//PS.debug( "PS.exitGrid() called\n" );
 
 	// Add code here for when the mouse cursor/touch moves off the grid.
 };
@@ -177,10 +192,9 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.keyDown = function( key, shift, ctrl, options ) {
-	// Uncomment the following code line to inspect first three parameters:
+	PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
 
-	// PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
-
+	
 	// Add code here for when a key is pressed.
 };
 
