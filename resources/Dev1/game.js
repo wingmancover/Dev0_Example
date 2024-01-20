@@ -51,11 +51,12 @@ Any value returned is ignored.
 const PLAYER_COLOR = PS.COLOR_BLUE;
 const TRAP_COLOR = PS.COLOR_RED;
 const EXIT_COLOR = PS.COLOR_GREEN;
-const NORMAL_COLOR = PS.COLOR_GRAY;
-const playerPosition = {x: 0, y: 0}; // Starting position of the player
+const NORMAL_COLOR = PS.COLOR_WHITE;
+let playerPosition = {x: 0, y: 0}; // Starting position of the player
+const exitPosition = { x: 8, y: 8};
 
 PS.init = function( system, options ) {
-	PS.debug( "PS.init() called\n" );
+	PS.debug( "ARROW_UP\nARROW_DOWN\nARROW_LEFT\nARROW_RIGHT to move" );
 
 	PS.gridSize( 9, 9);
 	PS.statusText( "Escape the Grid" );
@@ -63,7 +64,6 @@ PS.init = function( system, options ) {
 	PS.color(playerPosition.x, playerPosition.y, PLAYER_COLOR);
 
 	// Exit position
-	var exitPosition = { x: PS.gridSize().width - 1, y: PS.gridSize().height - 1 };
 	PS.color(exitPosition.x, exitPosition.y, EXIT_COLOR);
 
 	placeTraps();
@@ -86,11 +86,80 @@ function placeTraps(){
 		{x: 0, y: 8}, {x: 5, y: 8}, {x: 6, y: 8}, {x: 7, y: 8},
 	];
 
-	// set trap color and store them into data to mark them as traps
+	// set traps into data to mark them as traps
+	// So I know if players hit the trap by calling PS.data
 	trapPositions.forEach(function(position){
-		PS.color(position.x, position.y, TRAP_COLOR);
 		PS.data(position.x, position.y, "trap");
 	});
+}
+
+/**
+ * handle winning condition
+ */
+function onWin(){
+	let winTimer;
+
+	PS.statusText("You Win! :>");
+	showWinningSigns();
+
+	// use a timer to wait for 5 seconds
+	winTimer = PS.timerStart(300, function(){
+		PS.timerStop(winTimer); // Stop the timer
+
+		PS.statusText("Escape the Grid");
+		// reset the old position color
+		fillGridWithColor(NORMAL_COLOR);
+		PS.color(playerPosition.x, playerPosition.y, NORMAL_COLOR);
+		PS.color(0, 0, PLAYER_COLOR);
+		PS.color(exitPosition.x, exitPosition.y, EXIT_COLOR);
+
+		// reset the player position to the start
+		playerPosition.x = 0;
+		playerPosition.y = 0;
+
+		placeTraps();
+	});
+}
+
+/**
+ * show signs on winning positions
+ */
+function showWinningSigns(){
+	fillGridWithColor(NORMAL_COLOR);
+
+	const winningPositions = [
+		{ x: 2, y: 2, color: PS.COLOR_GREEN },
+		{ x: 2, y: 3, color: PS.COLOR_GREEN },
+		{ x: 2, y: 4, color: PS.COLOR_GREEN },
+		{ x: 2, y: 6, color: PS.COLOR_GREEN },
+		{ x: 4, y: 2, color: PS.COLOR_GREEN },
+		{ x: 4, y: 3, color: PS.COLOR_GREEN },
+		{ x: 4, y: 4, color: PS.COLOR_GREEN },
+		{ x: 4, y: 6, color: PS.COLOR_GREEN },
+		{ x: 6, y: 2, color: PS.COLOR_GREEN },
+		{ x: 6, y: 3, color: PS.COLOR_GREEN },
+		{ x: 6, y: 4, color: PS.COLOR_GREEN },
+		{ x: 6, y: 6, color: PS.COLOR_GREEN },
+	];
+
+	winningPositions.forEach(function(pos) {
+		PS.color(pos.x, pos.y, pos.color);
+	});
+}
+
+/**
+ * Make the whole grid turning into a color
+ * @param color the specific color
+ */
+function fillGridWithColor(color) {
+	let width = PS.gridSize().width;
+	let height = PS.gridSize().height;
+
+	for (let x = 0; x < width; x++) {
+		for (let y = 0; y < height; y++) {
+			PS.color(x, y, color);
+		}
+	}
 }
 /*
 PS.touch ( x, y, data, options )
@@ -106,7 +175,7 @@ PS.touch = function( x, y, data, options ) {
 	// Uncomment the following code line
 	// to inspect x/y parameters:
 
-	PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
+	//PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
 
 	// Add code here for mouse clicks/touches
 	// over a bead.
@@ -192,10 +261,69 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.keyDown = function( key, shift, ctrl, options ) {
-	PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
+	//PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
 
-	
-	// Add code here for when a key is pressed.
+	let x = playerPosition.x; // current x position
+	let y = playerPosition.y; // current y position
+
+	// Prevent moving off the grid
+	switch (key){
+		case PS.KEY_ARROW_UP:
+			if (y > 0) {
+				y -= 1;
+			}
+			break;
+
+		case PS.KEY_ARROW_DOWN:
+			if (y < PS.gridSize().height - 1) {
+				y += 1;
+			}
+			break;
+
+		case PS.KEY_ARROW_LEFT:
+			if (x > 0) {
+				x -= 1;
+			}
+			break;
+
+		case PS.KEY_ARROW_RIGHT:
+			if (x < PS.gridSize().width - 1) {
+				x += 1;
+			}
+			break;
+	}
+
+
+
+	if (x === exitPosition.x && y === exitPosition.y){
+		// players win
+		onWin();
+		return PS.DONE;
+	}
+
+	if (PS.data(x, y) !== "trap") {
+		// move player to the new position
+		PS.color(playerPosition.x, playerPosition.y, NORMAL_COLOR); // Reset the color of the old position
+		PS.color(x, y, PLAYER_COLOR); // color the new position
+		playerPosition.x = x;
+		playerPosition.y = y;
+	}
+	else // means player hits the trap, game should over and restart
+	{
+		// also, I set that the trap being hit will become visible in future runs
+		PS.color(x, y, TRAP_COLOR);
+
+		// reset player position
+		PS.statusText("You hit a trap! Let's start over");
+		PS.color(playerPosition.x, playerPosition.y, NORMAL_COLOR);
+		PS.color(0, 0, PLAYER_COLOR);
+
+		playerPosition.x = 0;
+		playerPosition.y = 0;
+	}
+
+	// consume the event so it won't do anything else
+	return PS.DONE;
 };
 
 /*
