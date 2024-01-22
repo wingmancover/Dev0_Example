@@ -56,7 +56,7 @@ let playerPosition = {x: 0, y: 0}; // Starting position of the player
 const exitPosition = { x: 8, y: 8};
 
 PS.init = function( system, options ) {
-	PS.debug( "ARROW_UP\nARROW_DOWN\nARROW_LEFT\nARROW_RIGHT to move" );
+	//PS.debug( "ARROW_UP\nARROW_DOWN\nARROW_LEFT\nARROW_RIGHT to move" );
 
 	PS.gridSize( 9, 9);
 	PS.statusText( "Escape the Grid" );
