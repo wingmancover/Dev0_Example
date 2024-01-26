@@ -55,11 +55,13 @@ const NORMAL_COLOR = PS.COLOR_WHITE;
 let playerPosition = {x: 0, y: 0}; // Starting position of the player
 const exitPosition = { x: 8, y: 8};
 
+let gameWon = false; // to check if a game is won
+
 PS.init = function( system, options ) {
 	//PS.debug( "ARROW_UP\nARROW_DOWN\nARROW_LEFT\nARROW_RIGHT to move" );
 
 	PS.gridSize( 9, 9);
-	PS.statusText( "Escape the Grid" );
+	PS.statusText( "Escape the Grid (Use the arrow keys)" );
 
 	PS.color(playerPosition.x, playerPosition.y, PLAYER_COLOR);
 
@@ -97,6 +99,8 @@ function placeTraps(){
  * handle winning condition
  */
 function onWin(){
+	gameWon = true;
+
 	let winTimer;
 
 	PS.statusText("You Win! :>");
@@ -106,7 +110,9 @@ function onWin(){
 	winTimer = PS.timerStart(300, function(){
 		PS.timerStop(winTimer); // Stop the timer
 
-		PS.statusText("Escape the Grid");
+		gameWon = false;
+
+		PS.statusText("Escape the Grid(Use the arrow keys)");
 		// reset the old position color
 		fillGridWithColor(NORMAL_COLOR);
 		PS.color(playerPosition.x, playerPosition.y, NORMAL_COLOR);
@@ -262,6 +268,10 @@ This function doesn't have to do anything. Any value returned is ignored.
 
 PS.keyDown = function( key, shift, ctrl, options ) {
 	//PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
+
+	if(gameWon){
+		return PS.DONE;
+	}
 
 	let x = playerPosition.x; // current x position
 	let y = playerPosition.y; // current y position
