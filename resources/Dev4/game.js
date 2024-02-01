@@ -48,33 +48,69 @@ Any value returned is ignored.
 [options : Object] = A JavaScript object with optional data properties; see API documentation for details.
 */
 
+const START_COLOR = PS.COLOR_VIOLET;
+const END_COLOR = PS.COLOR_GREEN;
+const PATH_COLOR = PS.COLOR_VIOLET; // Same as start color for the path
+const BLANK_COLOR = PS.COLOR_WHITE; // Color for blank beads
+const FORBIDDEN_COLOR = PS.COLOR_RED; // Color for forbidden beads
+
+
+const levels = [
+    { // Level 1
+        gridSize: { width: 3, height: 3 },
+        startPosition: { x: 0, y: 0 },
+        endPosition: { x: 2, y: 2 },
+        forbiddenPositions: [] // No forbidden beads for this level
+    },
+    { // Level 2
+        gridSize: { width: 5, height: 4 },
+        startPosition: { x: 1, y: 2 },
+        endPosition: { x: 2, y: 0 },
+        forbiddenPositions: [] // No forbidden beads for this level
+    },
+    { // Level 3
+        gridSize: { width: 6, height: 5 },
+        startPosition: { x: 2, y: 2 },
+        endPosition: { x: 0, y: 1 },
+        forbiddenPositions: [ { x: 2, y: 0 }, { x: 3, y: 2 } ] // Forbidden beads positions
+    }
+    // May add more levels...
+];
+
+// Start at the first level
+let currentLevelIndex = 0;
+
+// Track the last position clicked (start with start position)
+let lastPosition;
+
+// Flag to track if the game was won
+let gameWon = false;
+
+// Store the path (starting point initially)
+let path;
+
+// Store the timer ID for reload actions
+let reloadTimer = null;
+// Store the timer ID for next level actions
+let nextLevelTimer = null;
+// Store the timer ID for winning actions
+let winTimer = null;
+
+let canClick = true;
+
+
 PS.init = function( system, options ) {
 	// Uncomment the following code line
 	// to verify operation:
 
-	// PS.debug( "PS.init() called\n" );
+	 //PS.debug( "PS.init() called\n" );
 
-	// This function should normally begin
-	// with a call to PS.gridSize( x, y )
-	// where x and y are the desired initial
-	// dimensions of the grid.
-	// Call PS.gridSize() FIRST to avoid problems!
-	// The sample call below sets the grid to the
-	// default dimensions (8 x 8).
-	// Uncomment the following code line and change
-	// the x and y parameters as needed.
+    PS.audioLoad("fx_click", { lock: true });
+    PS.audioLoad("fx_bloink", { lock: true });
+    PS.audioLoad("fx_coin1", { lock: true });
 
-	// PS.gridSize( 8, 8 );
+    resetGameState(); // Ensure game state is reset on init
 
-	// This is also a good place to display
-	// your game title or a welcome message
-	// in the status line above the grid.
-	// Uncomment the following code line and
-	// change the string parameter as needed.
-
-	// PS.statusText( "Game" );
-
-	// Add any other initialization code you need here.
 };
 
 /*
@@ -91,11 +127,226 @@ PS.touch = function( x, y, data, options ) {
 	// Uncomment the following code line
 	// to inspect x/y parameters:
 
-	// PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
+	//PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
 
-	// Add code here for mouse clicks/touches
-	// over a bead.
+    // Ignore clicks if canClick is false
+    if (!canClick) {
+        return;
+    }
+
+    // Ignore if the game is won or if clicking the same bead
+    if (gameWon || (x === lastPosition.x && y === lastPosition.y)) {
+        return;
+    }
+
+    // Check if the bead is adjacent to the last bead in the path
+    if (!isAdjacent(x, y)) {
+        reloadLevel();
+        return;
+    }
+
+    let level = levels[currentLevelIndex]; // Load the current level configuration
+    let isForbidden = level.forbiddenPositions.some(pos => pos.x === x && pos.y === y);
+
+    if (isForbidden) {
+        reloadLevel();
+        return;
+    }
+
+    // Color the clicked bead, add to path, and update lastPosition
+    PS.color(x, y, PATH_COLOR);
+    path.push({ x, y });
+    lastPosition = { x, y };
+    PS.audioPlay("fx_click");
+
+    // Check win condition if end point is clicked
+    if (x === level.endPosition.x && y === level.endPosition.y) {
+        if (checkWinCondition()) {
+            if (gameWon) {
+                // Game already won, no need to proceed further
+                //PS.debug("Game already concluded.\n");
+                return;
+            }
+            gameWon = true;
+            PS.statusText("Level Complete!");
+            fillGridWithColor(END_COLOR);
+            PS.audioPlay("fx_coin1");
+
+            // Ensure any existing next level timer is canceled before starting a new one
+            if (winTimer !== null) {
+                PS.timerStop(winTimer);
+                winTimer = null;
+            }
+
+            // Start the next level transition timer
+            winTimer = PS.timerStart(180, function() {
+                nextLevel(); // Transition to the next level after 3 seconds
+                PS.timerStop(winTimer);
+                winTimer = null; // Clear the timer ID once executed
+            });
+        } else {
+            // Incorrect path or blank beads remaining
+            reloadLevel(true); // Indicates incorrect end point click
+        }
+    }
 };
+
+
+// Check if clicked bead is adjacent to the last position in the path
+function isAdjacent(x, y) {
+    // Check orthogonal adjacency and if bead is already part of the path
+    for (let i = 0; i < path.length; i++) {
+        if (path[i].x === x && path[i].y === y) {
+            return false; // Bead is already part of the path
+        }
+    }
+
+    // Check orthogonal adjacency (exclude diagonals)
+    return (Math.abs(lastPosition.x - x) === 1 && lastPosition.y === y) ||
+        (lastPosition.x === x && Math.abs(lastPosition.y - y) === 1);
+}
+
+
+// Check if all conditions for winning are met
+function checkWinCondition() {
+    let level = levels[currentLevelIndex];
+
+    for (let x = 0; x < level.gridSize.width; x++) {
+        for (let y = 0; y < level.gridSize.height; y++) {
+            let beadColor = PS.color(x, y);
+            if (beadColor === BLANK_COLOR) {
+                return false; // Found a blank bead
+            }
+        }
+    }
+    return true; // All beads are filled except forbidden beads
+}
+
+
+// Reload the level by calling resetGameState
+function reloadLevel(endClicked = false) {
+    //PS.debug( "reloadLevel() called\n" );
+
+    PS.audioPlay("fx_bloink");
+
+    PS.statusText(endClicked ? "Need to fill in all blank grids!" : "Path broken! Try again.");
+    canClick = false; // Disable clicking on beads
+
+    // If a reload timer is already running, let it finish
+    if (reloadTimer !== null) {
+        return;
+    }
+
+    reloadTimer = PS.timerStart(150, function() {
+        resetGameState();
+        PS.timerStop(reloadTimer); // Ensure to stop the timer after execution
+        reloadTimer = null; // Reset the timer ID for future use
+        canClick = true; // Re-enable clicking on beads
+    });
+}
+
+
+// Reset the game level
+function resetGameState() {
+    //PS.debug( "resetGameState() called\n" );
+
+    let level = levels[currentLevelIndex];
+
+    // Reset game state variables
+    gameWon = false;
+    canClick = true; // Ensure clicking is enabled when resetting
+    path = [ { ...level.startPosition } ]; // Reset path to start position
+    lastPosition = { ...level.startPosition }; // Reset last position to start
+
+    // Set grid size and color
+    PS.gridSize(level.gridSize.width, level.gridSize.height);
+    PS.gridColor(PS.COLOR_GRAY);
+
+    // Initialize all beads to blank
+    for (let x = 0; x < level.gridSize.width; x++) {
+        for (let y = 0; y < level.gridSize.height; y++) {
+            PS.color(x, y, BLANK_COLOR);
+        }
+    }
+    // Set start and end positions
+    PS.color(level.startPosition.x, level.startPosition.y, START_COLOR);
+    PS.color(level.endPosition.x, level.endPosition.y, END_COLOR);
+
+    // Set forbidden beads
+    level.forbiddenPositions.forEach(pos => {
+        PS.color(pos.x, pos.y, FORBIDDEN_COLOR);
+    });
+
+    PS.statusColor(PS.COLOR_WHITE);
+    PS.statusText("Pathway Puzzler: Click to Fill and Connect");
+}
+
+
+// Moving to the next level
+function nextLevel() {
+    // If a next level timer is already running, let it finish
+    if (nextLevelTimer !== null) {
+        PS.timerStop(nextLevelTimer);
+        nextLevelTimer = null;
+    }
+
+    //PS.debug("nextLevel() called\n");
+
+    if (gameWon) { // Check if the game was actually won before proceeding
+        if (currentLevelIndex < levels.length - 1) {
+            currentLevelIndex++; // Advance to the next level
+            PS.statusText("Moving to the next level...");
+
+            nextLevelTimer = PS.timerStart(120, function() {
+                resetGameState(); // Load the next level
+                PS.timerStop(nextLevelTimer);
+                nextLevelTimer = null;
+            });
+        } else {
+            PS.statusText("Congratulations! All levels completed.");
+            // Optionally, restart from the first level or end the game
+            currentLevelIndex = 0; // Restart from the first level
+
+            nextLevelTimer = PS.timerStart(180, function() {
+                resetGameState(); // Load the first level again
+                PS.timerStop(nextLevelTimer);
+                nextLevelTimer = null;
+            });
+        }
+    } else {
+        // If the game was not won, just reset the current level (safety check)
+        resetGameState();
+    }
+    /*
+    // Assuming nextLevel() is called after a delay or specific event
+    // Replace resetGameState() with actual level progression logic
+    nextLevelTimer = PS.timerStart(120, function() {
+        // Placeholder for level progression logic
+        // For now, we just reset the game state as a placeholder
+        resetGameState();
+
+        // Stop the timer and clear its ID
+        PS.timerStop(nextLevelTimer);
+        nextLevelTimer = null;
+
+        // Additional logic to actually load the next level would go here
+        // This might involve setting up a new grid, placing new obstacles, etc.
+    });
+    */
+}
+
+
+function fillGridWithColor(color) {
+    //PS.debug( "fillGridWithColor() called\n" );
+
+    let level = levels[currentLevelIndex]; // Load the current level configuration
+
+    for (let x = 0; x < level.gridSize.width; x++) {
+        for (let y = 0; y < level.gridSize.height; y++) {
+            PS.color(x, y, color);
+        }
+    }
+}
 
 /*
 PS.release ( x, y, data, options )
