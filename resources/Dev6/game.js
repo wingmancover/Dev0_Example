@@ -48,9 +48,9 @@ Any value returned is ignored.
 [options : Object] = A JavaScript object with optional data properties; see API documentation for details.
 */
 
-const START_COLOR = PS.COLOR_VIOLET;
-const END_COLOR = PS.COLOR_GREEN;
-const PATH_COLOR = PS.COLOR_VIOLET; // Same as start color for the path
+const START_COLOR = PS.COLOR_GREEN;
+const END_COLOR = PS.COLOR_VIOLET;
+const PATH_COLOR = PS.COLOR_GREEN; // Same as start color for the path
 const BLANK_COLOR = PS.COLOR_WHITE; // Color for blank beads
 const FORBIDDEN_COLOR = PS.COLOR_RED; // Color for forbidden beads
 
@@ -179,7 +179,7 @@ PS.touch = function( x, y, data, options ) {
             }
 
             // Start the next level transition timer
-            winTimer = PS.timerStart(180, function() {
+            winTimer = PS.timerStart(150, function() {
                 nextLevel(); // Transition to the next level after 3 seconds
                 PS.timerStop(winTimer);
                 winTimer = null; // Clear the timer ID once executed
@@ -261,16 +261,25 @@ function resetGameState() {
     // Set grid size and color
     PS.gridSize(level.gridSize.width, level.gridSize.height);
     PS.gridColor(PS.COLOR_GRAY);
-
-    // Initialize all beads to blank
+    
+    // Initialize all beads to blank and set start/end positions
     for (let x = 0; x < level.gridSize.width; x++) {
         for (let y = 0; y < level.gridSize.height; y++) {
-            PS.color(x, y, BLANK_COLOR);
+            if (x === level.startPosition.x && y === level.startPosition.y) {
+                PS.color(x, y, START_COLOR);
+                // Optionally, clear any glyph here for the start point
+                PS.glyph(x, y, 0); // Clear glyph
+            } else if (x === level.endPosition.x && y === level.endPosition.y) {
+                PS.color(x, y, END_COLOR);
+                // Set a flag glyph for the end point
+                PS.glyph(x, y, "⚑");
+                PS.glyphColor(x, y, PS.COLOR_WHITE); // Set glyph color if needed
+            } else {
+                PS.color(x, y, BLANK_COLOR);
+                PS.glyph(x, y, 0); // Clear glyph for non-start/end points
+            }
         }
     }
-    // Set start and end positions
-    PS.color(level.startPosition.x, level.startPosition.y, START_COLOR);
-    PS.color(level.endPosition.x, level.endPosition.y, END_COLOR);
 
     // Set forbidden beads
     level.forbiddenPositions.forEach(pos => {
@@ -278,7 +287,7 @@ function resetGameState() {
     });
 
     PS.statusColor(PS.COLOR_WHITE);
-    PS.statusText("Pathway Puzzler: Click to Fill and Connect");
+    PS.statusText("Pathway: Mouse Click to Fill and Connect");
 }
 
 
@@ -317,22 +326,7 @@ function nextLevel() {
         // If the game was not won, just reset the current level (safety check)
         resetGameState();
     }
-    /*
-    // Assuming nextLevel() is called after a delay or specific event
-    // Replace resetGameState() with actual level progression logic
-    nextLevelTimer = PS.timerStart(120, function() {
-        // Placeholder for level progression logic
-        // For now, we just reset the game state as a placeholder
-        resetGameState();
 
-        // Stop the timer and clear its ID
-        PS.timerStop(nextLevelTimer);
-        nextLevelTimer = null;
-
-        // Additional logic to actually load the next level would go here
-        // This might involve setting up a new grid, placing new obstacles, etc.
-    });
-    */
 }
 
 
