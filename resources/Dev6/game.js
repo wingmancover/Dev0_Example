@@ -56,29 +56,51 @@ const FORBIDDEN_COLOR = PS.COLOR_RED; // Color for forbidden beads
 
 
 const levels = [
-    { // Level 1
+    {   // Level 1
         gridSize: { width: 3, height: 3 },
         startPosition: { x: 0, y: 0 },
         endPosition: { x: 2, y: 2 },
-        forbiddenPositions: [] // No forbidden beads for this level
+        forbiddenPositions: [], // No forbidden beads for this level
+        checkpoints: [] // No checkpoints for this level
     },
-    { // Level 2
+    {   // Level 2
         gridSize: { width: 5, height: 4 },
         startPosition: { x: 1, y: 2 },
         endPosition: { x: 2, y: 0 },
-        forbiddenPositions: [] // No forbidden beads for this level
+        forbiddenPositions: [], // No forbidden beads for this level
+        checkpoints: [] // No checkpoints for this level
     },
-    { // Level 3
+    {   // Level 3
         gridSize: { width: 6, height: 5 },
         startPosition: { x: 2, y: 2 },
         endPosition: { x: 0, y: 1 },
-        forbiddenPositions: [ { x: 2, y: 0 }, { x: 3, y: 2 } ] // Forbidden beads positions
+        forbiddenPositions: [ { x: 2, y: 0 }, { x: 3, y: 2 } ], // Forbidden beads positions
+        checkpoints: [] // No checkpoints for this level=
+    },
+    {
+        // Level 4
+        gridSize: { width: 7, height: 6 },
+        startPosition: { x: 1, y: 4 },
+        endPosition: { x: 5, y: 1 },
+        forbiddenPositions: [{ x: 2, y: 2 }, { x: 5, y: 4 }],
+        checkpoints: [] // No checkpoints for this level
+    },
+    {
+        // Level 5 (final level)
+        gridSize: { width: 7, height: 6 },
+        startPosition: { x: 3, y: 5 },
+        endPosition: { x: 3, y: 0 },
+        forbiddenPositions: [{ x: 1, y: 1 }, { x: 1, y: 4 }, { x: 5, y: 1 }, { x: 5, y: 4 }],
+        checkpoints: [{ x: 6, y: 0, order: 1 }, { x: 2, y: 5, order: 2 }, { x: 1, y: 2, order: 3 }],
+        statusText: "Checkpoints! Fill in order!"
     }
-    // May add more levels...
 ];
 
 // Start at the first level
 let currentLevelIndex = 0;
+
+// Add a variable to track the current checkpoint index
+let currentCheckpointIndex = 0;
 
 // Track the last position clicked (start with start position)
 let lastPosition;
@@ -97,6 +119,9 @@ let nextLevelTimer = null;
 let winTimer = null;
 
 let canClick = true;
+
+let reloadReason = ""; // Tracks why the game is reloading
+
 
 
 PS.init = function( system, options ) {
@@ -149,8 +174,23 @@ PS.touch = function( x, y, data, options ) {
     let isForbidden = level.forbiddenPositions.some(pos => pos.x === x && pos.y === y);
 
     if (isForbidden) {
+        reloadReason = "Can't go there! Try again.";
         reloadLevel();
         return;
+    }
+
+    // Check if the clicked bead is a checkpoint and in the correct order
+    let checkpointIndex = level.checkpoints.findIndex(cp => cp.x === x && cp.y === y);
+    if (checkpointIndex >= 0) {
+        if (checkpointIndex !== currentCheckpointIndex) {
+            // Clicked out of order or the wrong checkpoint
+            reloadReason = "Checkpoints must be filled in order!";
+            reloadLevel();
+            return;
+        } else {
+            // Correct checkpoint, proceed
+            currentCheckpointIndex++;
+        }
     }
 
     // Color the clicked bead, add to path, and update lastPosition
@@ -229,7 +269,15 @@ function reloadLevel(endClicked = false) {
 
     PS.audioPlay("fx_bloink");
 
-    PS.statusText(endClicked ? "Need to fill in all blank grids!" : "Path broken! Try again.");
+    // Determine status text based on the reload reason
+    let statusText = "Path broken! Try again."; // Default message
+    if (endClicked) {
+        statusText = "Need to fill in all blank grids!";
+    } else if (reloadReason) {
+        statusText = reloadReason; // Use specific reason if set
+    }
+    PS.statusText(statusText);
+
     canClick = false; // Disable clicking on beads
 
     // If a reload timer is already running, let it finish
@@ -242,6 +290,7 @@ function reloadLevel(endClicked = false) {
         PS.timerStop(reloadTimer); // Ensure to stop the timer after execution
         reloadTimer = null; // Reset the timer ID for future use
         canClick = true; // Re-enable clicking on beads
+        reloadReason = ""; // Reset the reload reason for the next use
     });
 }
 
@@ -251,6 +300,7 @@ function resetGameState() {
     //PS.debug( "resetGameState() called\n" );
 
     let level = levels[currentLevelIndex];
+    currentCheckpointIndex = 0;
 
     // Reset game state variables
     gameWon = false;
@@ -261,33 +311,33 @@ function resetGameState() {
     // Set grid size and color
     PS.gridSize(level.gridSize.width, level.gridSize.height);
     PS.gridColor(PS.COLOR_GRAY);
-    
-    // Initialize all beads to blank and set start/end positions
+
+    // Initialize all beads
     for (let x = 0; x < level.gridSize.width; x++) {
         for (let y = 0; y < level.gridSize.height; y++) {
-            if (x === level.startPosition.x && y === level.startPosition.y) {
-                PS.color(x, y, START_COLOR);
-                // Optionally, clear any glyph here for the start point
-                PS.glyph(x, y, 0); // Clear glyph
-            } else if (x === level.endPosition.x && y === level.endPosition.y) {
-                PS.color(x, y, END_COLOR);
-                // Set a flag glyph for the end point
-                PS.glyph(x, y, "⚑");
-                PS.glyphColor(x, y, PS.COLOR_WHITE); // Set glyph color if needed
-            } else {
-                PS.color(x, y, BLANK_COLOR);
-                PS.glyph(x, y, 0); // Clear glyph for non-start/end points
-            }
+            PS.color(x, y, BLANK_COLOR);
+            PS.glyph(x, y, 0); // Clear any existing glyph
         }
     }
+
+    // Set start and end positions
+    PS.color(level.startPosition.x, level.startPosition.y, START_COLOR);
+    PS.color(level.endPosition.x, level.endPosition.y, END_COLOR);
+    // Optionally, set a flag glyph for the end position
+    PS.glyph(level.endPosition.x, level.endPosition.y, "⚑");
 
     // Set forbidden beads
     level.forbiddenPositions.forEach(pos => {
         PS.color(pos.x, pos.y, FORBIDDEN_COLOR);
     });
 
+    // Set checkpoints (if any)
+    level.checkpoints.forEach(checkpoint => {
+        PS.glyph(checkpoint.x, checkpoint.y, checkpoint.order.toString());
+    });
+
     PS.statusColor(PS.COLOR_WHITE);
-    PS.statusText("Pathway: Mouse Click to Fill and Connect");
+    PS.statusText(level.statusText || "Pathway: Mouse Click to Fill and Connect");
 }
 
 
