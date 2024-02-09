@@ -85,7 +85,7 @@ PS.init = function(system, options) {
     PS.audioLoad("fx_coin1");
 
 };
-
+ 
 function displayTitleScreen() {
     //PS.debug( "displayTitleScreen() called\n" );
 
