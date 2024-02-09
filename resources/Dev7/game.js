@@ -85,6 +85,8 @@ PS.init = function(system, options) {
 };
 
 function displayTitleScreen() {
+    PS.debug( "displayTitleScreen() called\n" );
+
     // Wait for user tap to start the game
     PS.statusText("Raindrop Journey - Tap to Start");
     // Indicate the game is ready to start but not actually started
@@ -94,6 +96,8 @@ function displayTitleScreen() {
 }
 
 function startGame() {
+    PS.debug( "startGame() called\n" );
+
     gameStarted = true;
     gameEnding = false; // Ensure this is set to false when starting
     isWinningAnimation = false; // Ensure this is false when starting
@@ -129,6 +133,8 @@ let obstacles = []; // Array to track obstacles
 
 
 function generateObstacles() {
+   // PS.debug( "generateObstacles() called\n" );
+
     // Randomly decide whether to add a cloud or bird
     // For simplicity, this example just toggles between them
     let type = PS.random(2) === 1 ? OBSTACLE_TYPES.CLOUD : OBSTACLE_TYPES.SUN;
@@ -145,6 +151,9 @@ function generateObstacles() {
 }
 
 function updateObstacles() {
+    PS.debug( "updateObstacles() called\n" );
+
+
     clouds.forEach((cloud, index) => {
         PS.glyph(cloud.x, cloud.y, 0); // Clear old position
         cloud.y--;
@@ -171,6 +180,8 @@ function updateObstacles() {
 }
 
 function checkCollisions() {
+    PS.debug( "checkCollisions() called\n" );
+
     // Check cloud collisions
     clouds.forEach((cloud, index) => {
         if (cloud.x === raindropPosition.x && cloud.y === raindropPosition.y) {
@@ -195,6 +206,8 @@ function checkCollisions() {
 }
 
 function slowDownRaindrop() {
+    PS.debug( "slowDownRaindrop() called\n" );
+
     // Increase the delay for moving the raindrop to simulate the slowdown effect
     raindropMoveDelay = 60; // Slowdown effect delay. Adjust as needed.
 
@@ -209,6 +222,8 @@ function slowDownRaindrop() {
 
 
 function clearObstacles() {
+    PS.debug( "clearObstacles() called\n" );
+
     clouds.forEach(cloud => PS.glyph(cloud.x, cloud.y, 0));
     suns.forEach(sun => PS.glyph(sun.x, sun.y, 0));
     clouds = [];
@@ -216,41 +231,47 @@ function clearObstacles() {
 }
 
 function endGame() {
-    gameStarted = false; // Prevent new actions
-    gameEnding = true; // Indicate that end game sequence is active
-    clearObstacles(); // Clear existing obstacles immediately
-    isWinningAnimation = true;
+
+    // Ensure no timers are running that might interfere with the game ending logic
+    clearAllTimers(); // A helper function to stop all running timers
+
+    // Prevent further game actions
+    gameStarted = false;
+    gameEnding = true;
+    clearObstacles(); // Make sure to clear any remaining obstacles on screen
 
     PS.statusText("You've successfully guided the raindrop!");
     let finalX = raindropPosition.x; // X position of the raindrop before game end
 
+    // This function handles moving the raindrop down
     function dropRain() {
+        PS.debug( "dropRain() called\n" );
+
+        // Check if raindrop is not yet at the bottom
         if (raindropPosition.y < GRID_HEIGHT - 1) {
-            // Move raindrop down
             PS.glyph(raindropPosition.x, raindropPosition.y, 0); // Clear current glyph
-            raindropPosition.y++;
-            PS.glyph(finalX, raindropPosition.y, RAIN_DROP);
-            PS.timerStart(15, dropRain); // Continue moving down with delay
+            raindropPosition.y++; // Move down
+            PS.glyph(finalX, raindropPosition.y, RAIN_DROP); // Show raindrop at new position
+            PS.timerStart(30, dropRain); // Continue moving down
         } else {
-            // Display plant sprite at the bottom
+            // Once at the bottom, show the plant and update status
             PS.color(finalX, raindropPosition.y, PS.COLOR_GREEN);
             PS.glyph(finalX, raindropPosition.y, PLANT_SPRITE);
             PS.statusText("It helps the seed grow into a plant!");
-
-            // Wait for 5 seconds, then reset the game
-            PS.timerStart(300, function() {
-                gameEnding = false; // Reset end-game state
-                isWinningAnimation = false;
-                displayTitleScreen(); // Reset to the title screen
-            });
+            // Set a timer to go back to the title screen after a delay
+            PS.timerStart(300, resetToTitleScreen);
         }
     }
 
-    dropRain(); // Start the raindrop moving down process
+    // Start moving the raindrop down
+    dropRain();
 }
 
 
 function resetGame() {
+    PS.debug( "resetGame() called\n" );
+
+
     // Reset game state and display a message
     gameStarted = false; // Mark game as not started
     gameEnding = true; // Indicate reset scenario is active
@@ -266,23 +287,56 @@ function resetGame() {
     });
 }
 
+function clearAllTimers() {
+    if (gameTimer) {
+        PS.timerStop(gameTimer);
+        gameTimer = null;
+    }
+    if (obstacleTimer) {
+        PS.timerStop(obstacleTimer);
+        obstacleTimer = null;
+    }
+    if (slowDownTimer) {
+        PS.timerStop(slowDownTimer);
+        slowDownTimer = null;
+    }
+    // Add stopping of any other timers you might have
+}
+
+function resetToTitleScreen() {
+    PS.debug( "resetToTitleScreen() called\n" );
+
+    // Reset game state variables
+    gameStarted = false;
+    gameEnding = false;
+    isWinningAnimation = false;
+    shouldDelayNextMove = false; // Reset movement delay flag
+
+    // Reset gameplay elements
+    raindropPosition = { x: 4, y: 0 }; // Reset raindrop to initial position
+    clouds = []; // Clear cloud array
+    suns = []; // Clear sun array
+
+    // Return to the title screen
+    displayTitleScreen();
+}
 
 PS.touch = function(x, y, data, options) {
     //PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
 
-    // If game hasn't started and is not ending, then allow to start the game
-    if (!gameStarted && !gameEnding && !isWinningAnimation) {
+    // Allow starting the game only from the title screen and when the game is not ending or in the winning animation
+    if (!gameStarted && !gameEnding && y === 0) {
         startGame();
-        return; // Early return to avoid further execution in this call
+        return; // Prevent further execution
     }
 
-    // Game interaction logic for moving the raindrop, ensuring it's within gameplay state
+    // Handle raindrop movement only if the game has started, is not ending, and during the gameplay phase
     if (gameStarted && !gameEnding && !isWinningAnimation && y === 0) {
-        // Implementing delayed movement only after hitting a cloud
+        // Delayed or immediate movement based on cloud collision
         if (shouldDelayNextMove) {
             PS.timerStart(raindropMoveDelay, () => moveRaindrop(x));
         } else {
-            moveRaindrop(x); // Immediate move if no delay is needed
+            moveRaindrop(x);
         }
     }
     // This setup prevents interaction during the winning animation and resets
