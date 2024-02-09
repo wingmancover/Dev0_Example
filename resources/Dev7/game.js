@@ -64,12 +64,13 @@ let suns = []; // Renamed from 'birds' for clarity
 let isWinningAnimation = false; // New variable to track winning animation state
 let gameEnding = false; // New variable to manage end-game state
 
-let raindropMoveDelay = 30; // Initial delay in ticks for moving the raindrop. Adjust as needed.
 let slowDownTimer = null; // Timer for managing slowdown effect duration.
 let shouldDelayNextMove = false; // Flag to indicate if the next move should be delayed
 
 let dropRainTimer = null;
 let resetToTitleTimer = null;
+let resetGameTimer = null;
+
 
 PS.init = function(system, options) {
     //PS.debug( "PS.init() called\n" );
@@ -117,24 +118,21 @@ function startGame() {
     obstacleTimer = PS.timerStart(30, generateObstacles); // Adjust as needed
 
     // Start game loop timer for 25 seconds duration
-    gameTimer = PS.timerStart(600/*1500*/, endGame); // 25 * 60 ticks
+    gameTimer = PS.timerStart(1200, endGame); // 25 * 60 ticks
 }
 
 
 function moveRaindrop(x) {
-    if (gameStarted) {
+    if (gameStarted && !shouldDelayNextMove) {
         PS.glyph(raindropPosition.x, raindropPosition.y, 0); // Clear old position
         raindropPosition.x = x; // Update position
         PS.glyph(x, raindropPosition.y, "☔"); // Display at new position
     }
 }
 
-let obstacles = []; // Array to track obstacles
-
-
 
 function generateObstacles() {
-   // PS.debug( "generateObstacles() called\n" );
+    // PS.debug( "generateObstacles() called\n" );
 
     // Randomly decide whether to add a cloud or bird
     // For simplicity, this example just toggles between them
@@ -187,13 +185,11 @@ function checkCollisions() {
     clouds.forEach((cloud, index) => {
         if (cloud.x === raindropPosition.x && cloud.y === raindropPosition.y) {
             clouds.splice(index, 1); // Remove the cloud that collided
-            PS.glyph(cloud.x, cloud.y, 0); // Optionally clear the cloud glyph if desired
-            shouldDelayNextMove = true;
-            // Schedule to reset the flag after a fixed delay, without affecting obstacle generation
-            PS.timerStart(180, () => {
-                shouldDelayNextMove = false;
-                slowDownRaindrop();
-            });
+            PS.glyph(cloud.x, cloud.y, 0); // Clear the cloud glyph
+            // Instead of setting shouldDelayNextMove to true directly, call slowDownRaindrop()
+            slowDownRaindrop();
+            // Redraw the raindrop at the current position after collision
+            PS.glyph(raindropPosition.x, raindropPosition.y, "☔");
         }
     });
 
@@ -209,15 +205,19 @@ function checkCollisions() {
 function slowDownRaindrop() {
     PS.debug( "slowDownRaindrop() called\n" );
 
-    // Increase the delay for moving the raindrop to simulate the slowdown effect
-    raindropMoveDelay = 60; // Slowdown effect delay. Adjust as needed.
-
-    // Flag to indicate the next move should be delayed
     shouldDelayNextMove = true;
 
+    PS.statusText("Oops! Hit a cloud! It's freezing...");
+
     // Reset the flag after a short delay to simulate slowing down
-    PS.timerStart(180, () => { // 180 ticks = 3 seconds
+    if (slowDownTimer !== null) {
+        PS.timerStop(slowDownTimer); // Ensure to stop any existing slowdown timer first
+    }
+    slowDownTimer = PS.timerStart(90, () => { // 180 ticks = 3 seconds
+        PS.statusText("Guide the Raindrop!");
         shouldDelayNextMove = false;
+        PS.timerStop(slowDownTimer);
+        slowDownTimer = null; // Clear the timer reference
     });
 }
 
@@ -237,7 +237,7 @@ function endGame() {
 
     gameStarted = false;
     gameEnding = true;
-    clearObstacles();
+    clearGrid();
 
     PS.statusText("You've successfully guided the raindrop!");
     let finalX = raindropPosition.x;
@@ -286,19 +286,22 @@ function endGame() {
 function resetGame() {
     PS.debug( "resetGame() called\n" );
 
+    clearAllTimers();
 
     // Reset game state and display a message
     gameStarted = false; // Mark game as not started
     gameEnding = true; // Indicate reset scenario is active
-    PS.timerStop(gameTimer);
-    PS.timerStop(obstacleTimer);
-    clearObstacles(); // Clear existing obstacles
+
+    clearGrid();
+    raindropPosition = { x: 4, y: 0 }; // Reset raindrop position to ensure it starts fresh
 
     PS.statusText("Oops! Hit a sun! Restarting...");
     // Delay before restarting to display message
-    PS.timerStart(180, function() {
+    resetGameTimer = PS.timerStart(180, function() {
         gameEnding = false; // Reset end-game state
         displayTitleScreen(); // Go back to title screen
+        PS.timerStop(resetGameTimer);
+        resetGameTimer = null;
     });
 }
 
@@ -315,7 +318,19 @@ function clearAllTimers() {
         PS.timerStop(slowDownTimer);
         slowDownTimer = null;
     }
-    // Add stopping of any other timers you might have
+    if (dropRainTimer) {
+        PS.timerStop(dropRainTimer);
+        dropRainTimer = null;
+    }
+    if (resetToTitleTimer) {
+        PS.timerStop(resetToTitleTimer);
+        resetToTitleTimer = null;
+    }
+    if (resetGameTimer) {
+        PS.timerStop(resetGameTimer);
+        resetGameTimer = null;
+    }
+    // Add stopping of any other timers might have
 }
 
 function resetToTitleScreen() {
@@ -334,6 +349,7 @@ function resetToTitleScreen() {
 
     // Clear the grid before returning to the title screen
     clearGrid();
+    PS.glyph(raindropPosition.x, raindropPosition.y, 0); // This might be redundant with clearGrid but added for clarity
 
     // Return to the title screen
     displayTitleScreen();
@@ -362,7 +378,7 @@ PS.touch = function(x, y, data, options) {
     if (gameStarted && !gameEnding && !isWinningAnimation && y === 0) {
         // Delayed or immediate movement based on cloud collision
         if (shouldDelayNextMove) {
-            PS.timerStart(raindropMoveDelay, () => moveRaindrop(x));
+            return;
         } else {
             moveRaindrop(x);
         }
@@ -384,11 +400,11 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.release = function( x, y, data, options ) {
-	// Uncomment the following code line to inspect x/y parameters:
+    // Uncomment the following code line to inspect x/y parameters:
 
-	// PS.debug( "PS.release() @ " + x + ", " + y + "\n" );
+    // PS.debug( "PS.release() @ " + x + ", " + y + "\n" );
 
-	// Add code here for when the mouse button/touch is released over a bead.
+    // Add code here for when the mouse button/touch is released over a bead.
 };
 
 /*
@@ -402,11 +418,11 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.enter = function( x, y, data, options ) {
-	// Uncomment the following code line to inspect x/y parameters:
+    // Uncomment the following code line to inspect x/y parameters:
 
-	// PS.debug( "PS.enter() @ " + x + ", " + y + "\n" );
+    // PS.debug( "PS.enter() @ " + x + ", " + y + "\n" );
 
-	// Add code here for when the mouse cursor/touch enters a bead.
+    // Add code here for when the mouse cursor/touch enters a bead.
 };
 
 /*
@@ -420,11 +436,11 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.exit = function( x, y, data, options ) {
-	// Uncomment the following code line to inspect x/y parameters:
+    // Uncomment the following code line to inspect x/y parameters:
 
-	// PS.debug( "PS.exit() @ " + x + ", " + y + "\n" );
+    // PS.debug( "PS.exit() @ " + x + ", " + y + "\n" );
 
-	// Add code here for when the mouse cursor/touch exits a bead.
+    // Add code here for when the mouse cursor/touch exits a bead.
 };
 
 /*
@@ -435,11 +451,11 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.exitGrid = function( options ) {
-	// Uncomment the following code line to verify operation:
+    // Uncomment the following code line to verify operation:
 
-	// PS.debug( "PS.exitGrid() called\n" );
+    // PS.debug( "PS.exitGrid() called\n" );
 
-	// Add code here for when the mouse cursor/touch moves off the grid.
+    // Add code here for when the mouse cursor/touch moves off the grid.
 };
 
 /*
@@ -453,11 +469,11 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.keyDown = function( key, shift, ctrl, options ) {
-	// Uncomment the following code line to inspect first three parameters:
+    // Uncomment the following code line to inspect first three parameters:
 
-	// PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
+    // PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
 
-	// Add code here for when a key is pressed.
+    // Add code here for when a key is pressed.
 };
 
 /*
@@ -471,11 +487,11 @@ This function doesn't have to do anything. Any value returned is ignored.
 */
 
 PS.keyUp = function( key, shift, ctrl, options ) {
-	// Uncomment the following code line to inspect first three parameters:
+    // Uncomment the following code line to inspect first three parameters:
 
-	// PS.debug( "PS.keyUp(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
+    // PS.debug( "PS.keyUp(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
 
-	// Add code here for when a key is released.
+    // Add code here for when a key is released.
 };
 
 /*
@@ -488,7 +504,7 @@ NOTE: Currently, only mouse wheel events are reported, and only when the mouse c
 */
 
 PS.input = function( sensors, options ) {
-	// Uncomment the following code lines to inspect first parameter:
+    // Uncomment the following code lines to inspect first parameter:
 
 //	 var device = sensors.wheel; // check for scroll wheel
 //
@@ -496,6 +512,5 @@ PS.input = function( sensors, options ) {
 //	   PS.debug( "PS.input(): " + device + "\n" );
 //	 }
 
-	// Add code here for when an input event is detected.
+    // Add code here for when an input event is detected.
 };
-
