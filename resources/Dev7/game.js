@@ -68,7 +68,8 @@ let raindropMoveDelay = 30; // Initial delay in ticks for moving the raindrop. A
 let slowDownTimer = null; // Timer for managing slowdown effect duration.
 let shouldDelayNextMove = false; // Flag to indicate if the next move should be delayed
 
-
+let dropRainTimer = null;
+let resetToTitleTimer = null;
 
 PS.init = function(system, options) {
     //PS.debug( "PS.init() called\n" );
@@ -230,42 +231,56 @@ function clearObstacles() {
     suns = [];
 }
 
+
 function endGame() {
+    clearAllTimers(); // Stop all running timers to prevent interference
 
-    // Ensure no timers are running that might interfere with the game ending logic
-    clearAllTimers(); // A helper function to stop all running timers
-
-    // Prevent further game actions
     gameStarted = false;
     gameEnding = true;
-    clearObstacles(); // Make sure to clear any remaining obstacles on screen
+    clearObstacles();
 
     PS.statusText("You've successfully guided the raindrop!");
-    let finalX = raindropPosition.x; // X position of the raindrop before game end
+    let finalX = raindropPosition.x;
 
-    // This function handles moving the raindrop down
+    // Define dropRain outside of the timer callback for clarity
     function dropRain() {
         PS.debug( "dropRain() called\n" );
 
-        // Check if raindrop is not yet at the bottom
         if (raindropPosition.y < GRID_HEIGHT - 1) {
             PS.glyph(raindropPosition.x, raindropPosition.y, 0); // Clear current glyph
             raindropPosition.y++; // Move down
             PS.glyph(finalX, raindropPosition.y, RAIN_DROP); // Show raindrop at new position
-            PS.timerStart(30, dropRain); // Continue moving down
         } else {
-            // Once at the bottom, show the plant and update status
-            PS.color(finalX, raindropPosition.y, PS.COLOR_GREEN);
-            PS.glyph(finalX, raindropPosition.y, PLANT_SPRITE);
-            PS.statusText("It helps the seed grow into a plant!");
-            // Set a timer to go back to the title screen after a delay
-            PS.timerStart(300, resetToTitleScreen);
+            // Once at the bottom, finalize the winning animation
+            finalizeWinningAnimation(finalX);
+            return; // Stop the recursion
         }
     }
 
-    // Start moving the raindrop down
-    dropRain();
+    // Initiate the dropRain process with a timer
+    dropRainTimer = PS.timerStart(30, dropRain);
+
+    // Helper function to finalize the winning animation
+    function finalizeWinningAnimation(finalX) {
+        PS.debug( "finalizeWinningAnimation() called\n" );
+
+        PS.timerStop(dropRainTimer); // Ensure to stop the timer
+        dropRainTimer = null; // Clear the timer ID
+
+        // Display the plant sprite and update the status
+        PS.color(finalX, GRID_HEIGHT - 1, PS.COLOR_GREEN);
+        PS.glyph(finalX, GRID_HEIGHT - 1, PLANT_SPRITE);
+        PS.statusText("It helps the seed grow into a plant!");
+
+        // Transition back to the title screen after a delay
+        resetToTitleTimer = PS.timerStart(300, function(){
+            resetToTitleScreen();
+            PS.timerStop(resetToTitleTimer);
+            resetToTitleTimer = null;
+        });
+    }
 }
+
 
 
 function resetGame() {
@@ -317,8 +332,21 @@ function resetToTitleScreen() {
     clouds = []; // Clear cloud array
     suns = []; // Clear sun array
 
+    // Clear the grid before returning to the title screen
+    clearGrid();
+
     // Return to the title screen
     displayTitleScreen();
+}
+
+// New function to clear the grid
+function clearGrid() {
+    for (let x = 0; x < GRID_WIDTH; x++) {
+        for (let y = 0; y < GRID_HEIGHT; y++) {
+            PS.glyph(x, y, 0); // Clear any glyph
+            PS.color(x, y, PS.COLOR_WHITE); // Reset background color to initial grid color
+        }
+    }
 }
 
 PS.touch = function(x, y, data, options) {
