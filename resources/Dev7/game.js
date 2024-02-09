@@ -87,10 +87,10 @@ PS.init = function(system, options) {
 };
 
 function displayTitleScreen() {
-    PS.debug( "displayTitleScreen() called\n" );
+    //PS.debug( "displayTitleScreen() called\n" );
 
     // Wait for user tap to start the game
-    PS.statusText("Raindrop Journey - Tap to Start");
+    PS.statusText("Raindrop Journey - Tap First Row to Start");
     // Indicate the game is ready to start but not actually started
     gameStarted = false;
     gameEnding = false;
@@ -98,7 +98,7 @@ function displayTitleScreen() {
 }
 
 function startGame() {
-    PS.debug( "startGame() called\n" );
+    //PS.debug( "startGame() called\n" );
 
     gameStarted = true;
     gameEnding = false; // Ensure this is set to false when starting
@@ -150,7 +150,7 @@ function generateObstacles() {
 }
 
 function updateObstacles() {
-    PS.debug( "updateObstacles() called\n" );
+    //PS.debug( "updateObstacles() called\n" );
 
 
     clouds.forEach((cloud, index) => {
@@ -179,7 +179,7 @@ function updateObstacles() {
 }
 
 function checkCollisions() {
-    PS.debug( "checkCollisions() called\n" );
+    //PS.debug( "checkCollisions() called\n" );
 
     // Check cloud collisions
     clouds.forEach((cloud, index) => {
@@ -203,7 +203,7 @@ function checkCollisions() {
 }
 
 function slowDownRaindrop() {
-    PS.debug( "slowDownRaindrop() called\n" );
+    //PS.debug( "slowDownRaindrop() called\n" );
 
     shouldDelayNextMove = true;
 
@@ -223,7 +223,7 @@ function slowDownRaindrop() {
 
 
 function clearObstacles() {
-    PS.debug( "clearObstacles() called\n" );
+    //PS.debug( "clearObstacles() called\n" );
 
     clouds.forEach(cloud => PS.glyph(cloud.x, cloud.y, 0));
     suns.forEach(sun => PS.glyph(sun.x, sun.y, 0));
@@ -244,7 +244,7 @@ function endGame() {
 
     // Define dropRain outside of the timer callback for clarity
     function dropRain() {
-        PS.debug( "dropRain() called\n" );
+        //PS.debug( "dropRain() called\n" );
 
         if (raindropPosition.y < GRID_HEIGHT - 1) {
             PS.glyph(raindropPosition.x, raindropPosition.y, 0); // Clear current glyph
@@ -262,7 +262,7 @@ function endGame() {
 
     // Helper function to finalize the winning animation
     function finalizeWinningAnimation(finalX) {
-        PS.debug( "finalizeWinningAnimation() called\n" );
+        //PS.debug( "finalizeWinningAnimation() called\n" );
 
         PS.timerStop(dropRainTimer); // Ensure to stop the timer
         dropRainTimer = null; // Clear the timer ID
@@ -284,7 +284,7 @@ function endGame() {
 
 
 function resetGame() {
-    PS.debug( "resetGame() called\n" );
+    //PS.debug( "resetGame() called\n" );
 
     clearAllTimers();
 
@@ -334,7 +334,7 @@ function clearAllTimers() {
 }
 
 function resetToTitleScreen() {
-    PS.debug( "resetToTitleScreen() called\n" );
+    //PS.debug( "resetToTitleScreen() called\n" );
 
     // Reset game state variables
     gameStarted = false;
