@@ -143,10 +143,7 @@ function checkCollisions() {
         if (cloud.x === raindropPosition.x && cloud.y === raindropPosition.y) {
             clouds.splice(index, 1); // Remove the cloud that collided
             PS.glyph(cloud.x, cloud.y, 0); // Clear the cloud glyph
-            // Instead of setting shouldDelayNextMove to true directly, call slowDownRaindrop()
-            slowDownRaindrop();
-            // Redraw the raindrop at the current position after collision
-            PS.glyph(raindropPosition.x, raindropPosition.y, "☔");
+            slowDownRaindrop(); // Handle freezing effect
         }
     });
 
@@ -164,6 +161,7 @@ function slowDownRaindrop() {
 
     shouldDelayNextMove = true;
 
+    PS.glyph(raindropPosition.x, raindropPosition.y, 0x2744);
     PS.statusText("Oops! Hit a cloud! It's freezing...");
 
     // Reset the flag after a short delay to simulate slowing down
@@ -173,6 +171,7 @@ function slowDownRaindrop() {
     slowDownTimer = PS.timerStart(90, () => { // 180 ticks = 3 seconds
         PS.statusText("Guide using 'WSAD' & Scroll Wheel");
         shouldDelayNextMove = false;
+        PS.glyph(raindropPosition.x, raindropPosition.y, "☔");
         PS.timerStop(slowDownTimer);
         slowDownTimer = null; // Clear the timer reference
     });
