@@ -8,8 +8,8 @@ const SUN = "⛅"; // Changed from bird to sun
 const PLANT_SPRITE = "✨"; // New plant sprite
 
 
-const GRID_WIDTH = 8;
-const GRID_HEIGHT = 8;
+const GRID_WIDTH = 11;
+const GRID_HEIGHT = 11;
 let gameStarted = false; // To track if the game has started
 let raindropPosition = { x: 4, y: 0 }; // Initial position of the raindrop
 
@@ -40,6 +40,8 @@ PS.init = function(system, options) {
 
     PS.gridSize(GRID_WIDTH, GRID_HEIGHT);
     PS.gridColor(PS.COLOR_CYAN);
+    PS.seed(12345);
+
     displayTitleScreen();
 
     // Pre-load audio
@@ -48,12 +50,13 @@ PS.init = function(system, options) {
     PS.audioLoad("fx_coin1");
 
 };
- 
+
+
 function displayTitleScreen() {
-    //PS.debug( "displayTitleScreen() called\n" );
+    PS.debug( "displayTitleScreen() called\n" );
 
     // Wait for user tap to start the game
-    PS.statusText("Raindrop Journey - Tap First Row to Start");
+    PS.statusText("Raindrop Journey - Press 'Space' to Start");
     // Indicate the game is ready to start but not actually started
     gameStarted = false;
     gameEnding = false;
@@ -61,12 +64,12 @@ function displayTitleScreen() {
 }
 
 function startGame() {
-    //PS.debug( "startGame() called\n" );
+    PS.debug( "startGame() called\n" );
 
     gameStarted = true;
     gameEnding = false; // Ensure this is set to false when starting
     isWinningAnimation = false; // Ensure this is false when starting
-    PS.statusText("Guide the Raindrop!");
+    PS.statusText("Guide using 'WSAD' & Scroll Wheel");
     PS.glyph(raindropPosition.x, raindropPosition.y, "☔");
 
     // Reset game elements for a new game
@@ -78,19 +81,10 @@ function startGame() {
     PS.glyph(raindropPosition.x, raindropPosition.y, "☔");
 
     // Start obstacle generation
-    obstacleTimer = PS.timerStart(30, generateObstacles); // Adjust as needed
+    obstacleTimer = PS.timerStart(20, generateObstacles); // Adjust as needed
 
-    // Start game loop timer for 25 seconds duration
-    gameTimer = PS.timerStart(1200, endGame); // 25 * 60 ticks
-}
-
-
-function moveRaindrop(x) {
-    if (gameStarted && !shouldDelayNextMove) {
-        PS.glyph(raindropPosition.x, raindropPosition.y, 0); // Clear old position
-        raindropPosition.x = x; // Update position
-        PS.glyph(x, raindropPosition.y, "☔"); // Display at new position
-    }
+    // Start game loop timer for 30 seconds duration
+    gameTimer = PS.timerStart(1800, endGame); // 30 * 60 ticks
 }
 
 
@@ -177,7 +171,7 @@ function slowDownRaindrop() {
         PS.timerStop(slowDownTimer); // Ensure to stop any existing slowdown timer first
     }
     slowDownTimer = PS.timerStart(90, () => { // 180 ticks = 3 seconds
-        PS.statusText("Guide the Raindrop!");
+        PS.statusText("Guide using 'WSAD' & Scroll Wheel");
         shouldDelayNextMove = false;
         PS.timerStop(slowDownTimer);
         slowDownTimer = null; // Clear the timer reference
@@ -185,14 +179,14 @@ function slowDownRaindrop() {
 }
 
 
-function clearObstacles() {
+//function clearObstacles() {
     //PS.debug( "clearObstacles() called\n" );
 
-    clouds.forEach(cloud => PS.glyph(cloud.x, cloud.y, 0));
-    suns.forEach(sun => PS.glyph(sun.x, sun.y, 0));
-    clouds = [];
-    suns = [];
-}
+//    clouds.forEach(cloud => PS.glyph(cloud.x, cloud.y, 0));
+//    suns.forEach(sun => PS.glyph(sun.x, sun.y, 0));
+ //   clouds = [];
+//    suns = [];
+//}
 
 
 function endGame() {
@@ -202,7 +196,7 @@ function endGame() {
     gameEnding = true;
     clearGrid();
 
-    PS.statusText("You've successfully guided the raindrop!");
+    PS.statusText("Congrats! You've successfully guided raindrop!");
     let finalX = raindropPosition.x;
 
     // Define dropRain outside of the timer callback for clarity
@@ -293,7 +287,6 @@ function clearAllTimers() {
         PS.timerStop(resetGameTimer);
         resetGameTimer = null;
     }
-    // Add stopping of any other timers might have
 }
 
 function resetToTitleScreen() {
@@ -328,26 +321,110 @@ function clearGrid() {
     }
 }
 
+function moveRaindropVertical(deltaY) {
+    //PS.debug( "moveRaindropVertical() called\n" );
+
+    if (gameStarted && !shouldDelayNextMove) {
+        PS.glyph(raindropPosition.x, raindropPosition.y, 0); // Clear old position
+        raindropPosition.y += deltaY; // Update vertical position
+        // Prevent moving out of grid boundaries
+        if (raindropPosition.y < 0) {
+            raindropPosition.y = 0;
+        } else if (raindropPosition.y > 5) {
+            raindropPosition.y = 5;
+        }
+        PS.glyph(raindropPosition.x, raindropPosition.y, "☔"); // Display at new position
+    }
+}
+
+function moveRaindropHorizontal(deltaX) {
+    //PS.debug( "moveRaindropHorizontal() called\n" );
+
+    if (gameStarted && !shouldDelayNextMove) {
+        PS.glyph(raindropPosition.x, raindropPosition.y, 0); // Clear old position
+        raindropPosition.x += deltaX; // Update horizontal position
+        // Prevent moving out of grid boundaries
+        let gridWidth = PS.gridSize().width;
+        if (raindropPosition.x < 0) {
+            raindropPosition.x = 0;
+        } else if (raindropPosition.x >= gridWidth) {
+            raindropPosition.x = gridWidth - 1;
+        }
+        PS.glyph(raindropPosition.x, raindropPosition.y, "☔"); // Display at new position
+    }
+}
+
+
+PS.input = function(device, key, isDown) {
+
+    if (!gameStarted) {
+        return; // Ignore inputs if the game hasn't started
+    }
+
+    // Check if the event is a mouse wheel event
+    var wheelEvent = device.wheel;
+    if (wheelEvent) {
+        if (wheelEvent === PS.WHEEL_FORWARD) {
+            // Wheel scrolled forward
+            if (raindropPosition.y > 0) {
+                moveRaindropVertical(-1); // Move up
+            }
+        } else if (wheelEvent === PS.WHEEL_BACKWARD) {
+            // Wheel scrolled backward
+            if (raindropPosition.y < 5) {
+                moveRaindropVertical(1); // Move down
+            }
+        }
+        return; // Exit the function after handling wheel event
+    }
+};
+
+PS.keyDown = function( key, shift, ctrl, options ) {
+    //PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
+
+    if (key === 32 && !gameStarted && !gameEnding && !isWinningAnimation) { // 32 is the key code for the space bar
+        startGame();
+        return; // Important to prevent further processing if this condition is met
+    }
+
+    // Ensure the game has started before processing any movement
+    if (!gameStarted) {
+        return;
+    }
+
+    // Handle arrow key movements
+    switch(key) {
+        case 119: // 'w'
+        case 87: // 'W'
+            if (raindropPosition.y > 0) { // Prevent moving up if at the top row
+                moveRaindropVertical(-1);
+            }
+            break;
+        case 115: // 's'
+        case 83: // 'S'
+            if (raindropPosition.y < 5) { // Prevent moving down if at the bottom row (6th row, y = 5)
+                moveRaindropVertical(1);
+            }
+            break;
+        case 97: // 'a'
+        case 65: // 'A'
+            if (raindropPosition.x > 0) { // Prevent moving left if at the left edge
+                moveRaindropHorizontal(-1);
+            }
+            break;
+        case 100: // 'd'
+        case 68: // 'D'
+            if (raindropPosition.x < PS.gridSize().width - 1) { // Prevent moving right if at the right edge
+                moveRaindropHorizontal(1);
+            }
+            break;
+    }
+};
+
+
 PS.touch = function(x, y, data, options) {
     //PS.debug( "PS.touch() @ " + x + ", " + y + "\n" );
 
-    // Allow starting the game only from the title screen and when the game is not ending or in the winning animation
-    if (!gameStarted && !gameEnding && y === 0) {
-        startGame();
-        return; // Prevent further execution
-    }
-
-    // Handle raindrop movement only if the game has started, is not ending, and during the gameplay phase
-    if (gameStarted && !gameEnding && !isWinningAnimation && y === 0) {
-        // Delayed or immediate movement based on cloud collision
-        if (shouldDelayNextMove) {
-            return;
-        } else {
-            moveRaindrop(x);
-        }
-    }
-    // This setup prevents interaction during the winning animation and resets
-    // No else part needed; this implicitly handles ignoring touches during the end game sequence or when the game hasn't started yet
 };
 
 
@@ -431,14 +508,6 @@ This function doesn't have to do anything. Any value returned is ignored.
 [options : Object] = A JavaScript object with optional data properties; see API documentation for details.
 */
 
-PS.keyDown = function( key, shift, ctrl, options ) {
-    // Uncomment the following code line to inspect first three parameters:
-
-    // PS.debug( "PS.keyDown(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
-
-    // Add code here for when a key is pressed.
-};
-
 /*
 PS.keyUp ( key, shift, ctrl, options )
 Called when a key on the keyboard is released.
@@ -455,25 +524,4 @@ PS.keyUp = function( key, shift, ctrl, options ) {
     // PS.debug( "PS.keyUp(): key=" + key + ", shift=" + shift + ", ctrl=" + ctrl + "\n" );
 
     // Add code here for when a key is released.
-};
-
-/*
-PS.input ( sensors, options )
-Called when a supported input device event (other than those above) is detected.
-This function doesn't have to do anything. Any value returned is ignored.
-[sensors : Object] = A JavaScript object with properties indicating sensor status; see API documentation for details.
-[options : Object] = A JavaScript object with optional data properties; see API documentation for details.
-NOTE: Currently, only mouse wheel events are reported, and only when the mouse cursor is positioned directly over the grid.
-*/
-
-PS.input = function( sensors, options ) {
-    // Uncomment the following code lines to inspect first parameter:
-
-//	 var device = sensors.wheel; // check for scroll wheel
-//
-//	 if ( device ) {
-//	   PS.debug( "PS.input(): " + device + "\n" );
-//	 }
-
-    // Add code here for when an input event is detected.
 };
