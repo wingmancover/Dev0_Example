@@ -61,6 +61,7 @@ function displayTitleScreen() {
     gameStarted = false;
     gameEnding = false;
     isWinningAnimation = false;
+    shouldDelayNextMove = false; // Ensure movement is enabled upon restart
 }
 
 function startGame() {
@@ -176,16 +177,6 @@ function slowDownRaindrop() {
         slowDownTimer = null; // Clear the timer reference
     });
 }
-
-
-//function clearObstacles() {
-    //PS.debug( "clearObstacles() called\n" );
-
-//    clouds.forEach(cloud => PS.glyph(cloud.x, cloud.y, 0));
-//    suns.forEach(sun => PS.glyph(sun.x, sun.y, 0));
- //   clouds = [];
-//    suns = [];
-//}
 
 
 function endGame() {
