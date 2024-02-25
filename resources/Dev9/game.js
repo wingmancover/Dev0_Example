@@ -1,35 +1,33 @@
 
 "use strict"; // Do NOT remove this directive!
 
-
-const RAIN_DROP = "☔"; // Example glyph for the raindrop
-const CLOUD = "☁"; // Example glyph for the cloud
-const SUN = "⛅"; // Changed from bird to sun
-const PLANT_SPRITE = "✨"; // New plant sprite
-
-
-const GRID_WIDTH = 11;
-const GRID_HEIGHT = 11;
-let gameStarted = false; // To track if the game has started
-let raindropPosition = { x: 4, y: 0 }; // Initial position of the raindrop
+const RAIN_DROP = "☔";
+const CLOUD = "☁";
+const SUN = "⛅";
+const PLANT_SPRITE = "✨";
 
 // Obstacle Types
 const OBSTACLE_TYPES = { CLOUD: "cloud", SUN: "sun" };
 
-// Timer IDs for the game loop and obstacle generation
-let gameTimer = null;
-let obstacleTimer = null;
+const GRID_WIDTH = 11;
+const GRID_HEIGHT = 11;
+
+// Initial position of the raindrop
+let raindropPosition = { x: 4, y: 0 };
 
 // Arrays to track obstacles
 let clouds = [];
 let suns = []; // Renamed from 'birds' for clarity
 
 let isWinningAnimation = false; // New variable to track winning animation state
+let gameStarted = false; // To track if the game has started
 let gameEnding = false; // New variable to manage end-game state
-
-let slowDownTimer = null; // Timer for managing slowdown effect duration.
 let shouldDelayNextMove = false; // Flag to indicate if the next move should be delayed
 
+// Timer IDs
+let gameTimer = null;
+let obstacleTimer = null;
+let slowDownTimer = null; // Timer for managing slowdown effect duration.
 let dropRainTimer = null;
 let resetToTitleTimer = null;
 let resetGameTimer = null;
@@ -39,6 +37,7 @@ PS.init = function(system, options) {
     //PS.debug( "PS.init() called\n" );
 
     PS.gridSize(GRID_WIDTH, GRID_HEIGHT);
+    makeGridLinesInvisible();
     PS.gridColor(PS.COLOR_CYAN);
     PS.seed(12345);
 
@@ -51,6 +50,17 @@ PS.init = function(system, options) {
 
 };
 
+
+function makeGridLinesInvisible() {
+    const width = PS.gridSize().width; // Get the current grid width
+    const height = PS.gridSize().height; // Get the current grid height
+
+    for (let x = 0; x < width; x++) {
+        for (let y = 0; y < height; y++) {
+            PS.borderAlpha(x, y, 0); // Set border alpha to 0 to make it invisible
+        }
+    }
+}
 
 function displayTitleScreen() {
     PS.debug( "displayTitleScreen() called\n" );
