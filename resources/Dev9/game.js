@@ -38,16 +38,19 @@ PS.init = function(system, options) {
 
     PS.gridSize(GRID_WIDTH, GRID_HEIGHT);
     makeGridLinesInvisible();
+
     PS.gridColor(PS.COLOR_CYAN);
+
     PS.seed(12345);
 
-    displayTitleScreen();
-
     // Pre-load audio
-    PS.audioLoad("fx_click");
-    PS.audioLoad("fx_bloink");
-    PS.audioLoad("fx_coin1");
+    PS.audioLoad("fx_drip2");
+    PS.audioLoad("fx_swoosh");
+    PS.audioLoad("fx_squish");
+    PS.audioLoad("fx_drip1");
+    PS.audioLoad("fx_tada");
 
+    displayTitleScreen();
 };
 
 
@@ -63,7 +66,7 @@ function makeGridLinesInvisible() {
 }
 
 function displayTitleScreen() {
-    PS.debug( "displayTitleScreen() called\n" );
+    //PS.debug( "displayTitleScreen() called\n" );
 
     // Wait for user tap to start the game
     PS.statusText("Raindrop Journey - Press 'Space' to Start");
@@ -75,7 +78,7 @@ function displayTitleScreen() {
 }
 
 function startGame() {
-    PS.debug( "startGame() called\n" );
+    //PS.debug( "startGame() called\n" );
 
     gameStarted = true;
     gameEnding = false; // Ensure this is set to false when starting
@@ -169,6 +172,7 @@ function checkCollisions() {
 
 function slowDownRaindrop() {
     //PS.debug( "slowDownRaindrop() called\n" );
+    PS.audioPlay("fx_squish");
 
     shouldDelayNextMove = true;
 
@@ -204,6 +208,8 @@ function endGame() {
         //PS.debug( "dropRain() called\n" );
 
         if (raindropPosition.y < GRID_HEIGHT - 1) {
+            PS.audioPlay("fx_drip1");
+
             PS.glyph(raindropPosition.x, raindropPosition.y, 0); // Clear current glyph
             raindropPosition.y++; // Move down
             PS.glyph(finalX, raindropPosition.y, RAIN_DROP); // Show raindrop at new position
@@ -220,6 +226,7 @@ function endGame() {
     // Helper function to finalize the winning animation
     function finalizeWinningAnimation(finalX) {
         //PS.debug( "finalizeWinningAnimation() called\n" );
+        PS.audioPlay("fx_tada");
 
         PS.timerStop(dropRainTimer); // Ensure to stop the timer
         dropRainTimer = null; // Clear the timer ID
@@ -242,6 +249,7 @@ function endGame() {
 
 function resetGame() {
     //PS.debug( "resetGame() called\n" );
+    PS.audioPlay("fx_swoosh");
 
     clearAllTimers();
 
@@ -253,6 +261,7 @@ function resetGame() {
     raindropPosition = { x: 4, y: 0 }; // Reset raindrop position to ensure it starts fresh
 
     PS.statusText("Oops! Hit a sun! Restarting...");
+
     // Delay before restarting to display message
     resetGameTimer = PS.timerStart(180, function() {
         gameEnding = false; // Reset end-game state
@@ -368,11 +377,13 @@ PS.input = function(device, key, isDown) {
             // Wheel scrolled forward
             if (raindropPosition.y > 0) {
                 moveRaindropVertical(-1); // Move up
+                if (!shouldDelayNextMove) {PS.audioPlay("fx_drip2");}
             }
         } else if (wheelEvent === PS.WHEEL_BACKWARD) {
             // Wheel scrolled backward
             if (raindropPosition.y < 5) {
                 moveRaindropVertical(1); // Move down
+                if (!shouldDelayNextMove) {PS.audioPlay("fx_drip2");}
             }
         }
         return; // Exit the function after handling wheel event
@@ -398,24 +409,28 @@ PS.keyDown = function( key, shift, ctrl, options ) {
         case 87: // 'W'
             if (raindropPosition.y > 0) { // Prevent moving up if at the top row
                 moveRaindropVertical(-1);
+                if (!shouldDelayNextMove) {PS.audioPlay("fx_drip2");}
             }
             break;
         case 115: // 's'
         case 83: // 'S'
             if (raindropPosition.y < 5) { // Prevent moving down if at the bottom row (6th row, y = 5)
                 moveRaindropVertical(1);
+                if (!shouldDelayNextMove) {PS.audioPlay("fx_drip2");}
             }
             break;
         case 97: // 'a'
         case 65: // 'A'
             if (raindropPosition.x > 0) { // Prevent moving left if at the left edge
                 moveRaindropHorizontal(-1);
+                if (!shouldDelayNextMove) {PS.audioPlay("fx_drip2");}
             }
             break;
         case 100: // 'd'
         case 68: // 'D'
             if (raindropPosition.x < PS.gridSize().width - 1) { // Prevent moving right if at the right edge
                 moveRaindropHorizontal(1);
+                if (!shouldDelayNextMove) {PS.audioPlay("fx_drip2");}
             }
             break;
     }
